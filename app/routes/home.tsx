@@ -1,13 +1,7 @@
 import { Play, Square } from "lucide-react";
 import type { Route } from "./+types/home";
-import { useCallback, useEffect, useState } from "react";
-import {
-  Workbook,
-  type Cell,
-  type CellFormulaValue,
-  type Row,
-  type Worksheet,
-} from "exceljs";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import ExcelJS from 'exceljs';
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -36,21 +30,8 @@ interface PrototypeShiftDataItem {
 
 export default function Home() {
   const lastBillingPhase = new Date();
-  const [inShift, setIsShift] = useState("shift-start-time" in localStorage);
-  const [shiftData, setShiftData] = useState<ShiftDataItem[]>(() => {
-    const shiftData = localStorage.getItem("all-shift-data");
-    if (!shiftData) return [];
-
-    const parsedData: PrototypeShiftDataItem[] = JSON.parse(shiftData);
-    return parsedData.map((p): ShiftDataItem => ({
-      date: new Date(p.date),
-      time: {
-        start: new Date(p.time.start),
-        end: new Date(p.time.end),
-      },
-      tasks: p.tasks,
-    }));
-  });
+  const [inShift, setIsShift] = useState(false);
+  const [shiftData, setShiftData] = useState<ShiftDataItem[]>([]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -67,6 +48,27 @@ export default function Home() {
       ),
     );
   }, [shiftData]);
+
+  useLayoutEffect(() => {
+    setIsShift("shift-start-time" in localStorage);
+  }, []);
+
+  useLayoutEffect(() => {
+    const shiftData = localStorage.getItem("all-shift-data");
+    if (!shiftData) return;
+
+    const parsedData: PrototypeShiftDataItem[] = JSON.parse(shiftData);
+    setShiftData(
+      parsedData.map((p): ShiftDataItem => ({
+        date: new Date(p.date),
+        time: {
+          start: new Date(p.time.start),
+          end: new Date(p.time.end),
+        },
+        tasks: p.tasks,
+      })),
+    );
+  }, []);
 
   const ShiftIcon = inShift ? Square : Play;
   const toggleShift = useCallback(() => {
@@ -107,7 +109,7 @@ export default function Home() {
     fetch("/timesheet.xlsx").then(async (res) => {
       const buffer = await res.arrayBuffer();
 
-      const workbook = new Workbook();
+      const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(buffer);
 
       // First worksheet
@@ -177,14 +179,14 @@ export default function Home() {
       // Clear data after download
       setShiftData([]);
 
-      function copyRow(sourceRow: Row, targetRow: Row) {
+      function copyRow(sourceRow: ExcelJS.Row, targetRow: ExcelJS.Row) {
         targetRow.height = sourceRow.height;
 
         for (let col = 1; col <= 7; col++) {
           copyCell(sourceRow.getCell(col), targetRow.getCell(col));
         }
 
-        function copyCell(source: Cell, target: Cell) {
+        function copyCell(source: ExcelJS.Cell, target: ExcelJS.Cell) {
           // Copy the value/formula.
           if (
             source.value &&
@@ -196,7 +198,7 @@ export default function Home() {
               ...(source.value.result !== undefined
                 ? { result: source.value.result }
                 : {}),
-            } as CellFormulaValue;
+            } as ExcelJS.CellFormulaValue;
           } else {
             target.value = source.value;
           }
@@ -222,7 +224,7 @@ export default function Home() {
         <p className="text-gray-400">Punch your WTN IT shifts</p>
 
         <div className="py-8 flex flex-col gap-4 items-start">
-          <button onClick={toggleShift} className={inShift ? 'pulsing' : ''}>
+          <button onClick={toggleShift} className={inShift ? "pulsing" : ""}>
             <ShiftIcon size={32} />
           </button>
 
@@ -230,7 +232,9 @@ export default function Home() {
             onClick={startNewBillingPhase}
             disabled={shiftData.length === 0}
           >
-            {shiftData.length > 0 ? "Save billing phase as xlsx" : "Start new billing phase by clocking in/out"}
+            {shiftData.length > 0
+              ? "Save billing phase as xlsx"
+              : "Start new billing phase by clocking in/out"}
           </button>
         </div>
       </aside>
