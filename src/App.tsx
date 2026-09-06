@@ -1,14 +1,7 @@
+import PWABadge from "./PWABadge.tsx";
 import { Play, Square } from "lucide-react";
-import type { Route } from "./+types/home";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
-import ExcelJS from 'exceljs';
-
-export function meta({}: Route.MetaArgs) {
-  return [
-    { title: "Punch" },
-    { name: "description", content: "Punch your WTN shifts" },
-  ];
-}
+import ExcelJS from "exceljs";
 
 interface ShiftDataItem {
   date: Date;
@@ -28,7 +21,16 @@ interface PrototypeShiftDataItem {
   tasks: string;
 }
 
-export default function Home() {
+function calculateTimeElapsed(date1: Date, date2: Date): string {
+  const ms = Math.abs(date2.getTime() - date1.getTime());
+  const s = ms / 1000;
+  const m = s / 60;
+  const h = m / 60;
+
+  return `${Math.floor(h) % 60}:${(Math.floor(m) % 60).toString().padStart(2, "0")}:${(Math.floor(s) % 60).toString().padStart(2, "0")}`;
+}
+
+function App() {
   const lastBillingPhase = new Date();
   const [inShift, setIsShift] = useState(false);
   const [shiftData, setShiftData] = useState<ShiftDataItem[]>([]);
@@ -219,6 +221,7 @@ export default function Home() {
 
   return (
     <div className="fixed inset-0 flex p-12">
+      <PWABadge />
       <aside className="min-w-sm">
         <h1 className="text-3xl font-bold">Punch</h1>
         <p className="text-gray-400">Punch your WTN IT shifts</p>
@@ -286,11 +289,4 @@ export default function Home() {
   );
 }
 
-function calculateTimeElapsed(date1: Date, date2: Date): string {
-  const ms = Math.abs(date2.getTime() - date1.getTime());
-  const s = ms / 1000;
-  const m = s / 60;
-  const h = m / 60;
-
-  return `${Math.floor(h) % 60}:${(Math.floor(m) % 60).toString().padStart(2, "0")}:${(Math.floor(s) % 60).toString().padStart(2, "0")}`;
-}
+export default App;

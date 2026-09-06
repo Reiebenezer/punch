@@ -1,55 +1,42 @@
-import { reactRouter } from "@react-router/dev/vite";
-import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    react(),
     tailwindcss(),
-    reactRouter(),
     VitePWA({
-      registerType: "autoUpdate", // Automatically updates service worker
-      manifest: {
-        name: "WTN Punch",
-        short_name: "Punch",
-        description: "Punch your WTN shifts",
-        theme_color: "#030712",
-        background_color: "#030712",
-        display: "standalone",
-        icons: [
-          {
-            src: "pwa-64x64.png",
-            sizes: "64x64",
-            type: "image/png",
-          },
-          {
-            src: "pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any",
-          },
-          {
-            src: "maskable-icon-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
-        ],
-      },
-      devOptions: {
-        enabled: true, // Enables PWA features in development mode
-        type: 'module',
-        navigateFallbackAllowlist: [/^index.html$/]
+      registerType: "autoUpdate",
+      injectRegister: false,
+      includeAssets: ['/timesheet.xlsx'],
+
+      pwaAssets: {
+        disabled: false,
+        config: true,
       },
 
+      manifest: {
+        name: "WTN Punch",
+        short_name: "punch",
+        description: "Punch Your WTN Shifts",
+        theme_color: "#030712",
+      },
+
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,tsx}"],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+      },
+
+      devOptions: {
+        enabled: false,
+        navigateFallback: "index.html",
+        suppressWarnings: true,
+        type: "module",
+      },
     }),
   ],
-  resolve: {
-    tsconfigPaths: true,
-  },
 });
