@@ -131,19 +131,20 @@ export default function App() {
 
         // Update values accordingly
         targetRow.getCell(1).value = templateRowNumber + i - 10;
-        targetRow.getCell(7).value = {
-          formula: `=IF(COUNTA(C${o}, D${o})=0, "", IF(D${o}<C${o},D${o}+12-C${o},D${o}-C${o}))`,
-        };
       }
 
       // Start filling in the values
       shiftData.forEach((shift, i) => {
-        const row = worksheet.getRow(templateRowNumber + i);
+        const o = templateRowNumber + i;
+        const row = worksheet.getRow(o);
 
         row.getCell(2).value = toESTISO(shift.date);
         row.getCell(3).value = toESTISO(shift.time.start);
         row.getCell(4).value = toESTISO(shift.time.end);
         row.getCell(8).value = shift.tasks;
+        row.getCell(7).value = {
+          formula: `=IF(COUNTA(C${o}, D${o})=0, "", IF(D${o}<C${o},D${o}+12-C${o},D${o}-C${o}))`,
+        };
       });
 
       // Add the start and end dates
