@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: false,
-      includeAssets: ['/timesheet.xlsx'],
+      includeAssets: ["/timesheet.xlsx"],
 
       pwaAssets: {
         disabled: false,
@@ -20,7 +20,7 @@ export default defineConfig({
 
       manifest: {
         name: "WTN Punch",
-        short_name: "punch",
+        short_name: "WTN Punch",
         description: "Punch Your WTN Shifts",
         theme_color: "#030712",
       },

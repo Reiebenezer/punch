@@ -21,19 +21,27 @@ interface PrototypeShiftDataItem {
   tasks: string;
 }
 
-function calculateTimeElapsed(date1: Date, date2: Date): string {
-  const ms = Math.abs(date2.getTime() - date1.getTime());
-  const s = ms / 1000;
-  const m = s / 60;
-  const h = m / 60;
-
-  return `${Math.floor(h) % 60}:${(Math.floor(m) % 60).toString().padStart(2, "0")}:${(Math.floor(s) % 60).toString().padStart(2, "0")}`;
-}
-
-function App() {
+export default function App() {
   const lastBillingPhase = new Date();
   const [inShift, setIsShift] = useState(false);
-  const [shiftData, setShiftData] = useState<ShiftDataItem[]>([]);
+  const [shiftData, setShiftData] = useState<ShiftDataItem[]>(() => {
+    const shiftData = localStorage.getItem("all-shift-data");
+    if (!shiftData) return [];
+
+    const parsedData: PrototypeShiftDataItem[] = JSON.parse(shiftData);
+    return parsedData.map((p): ShiftDataItem => ({
+      date: new Date(p.date),
+      time: {
+        start: new Date(p.time.start),
+        end: new Date(p.time.end),
+      },
+      tasks: p.tasks,
+    }));
+  });
+
+  useLayoutEffect(() => {
+    setIsShift("shift-start-time" in localStorage);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(
@@ -50,27 +58,6 @@ function App() {
       ),
     );
   }, [shiftData]);
-
-  useLayoutEffect(() => {
-    setIsShift("shift-start-time" in localStorage);
-  }, []);
-
-  useLayoutEffect(() => {
-    const shiftData = localStorage.getItem("all-shift-data");
-    if (!shiftData) return;
-
-    const parsedData: PrototypeShiftDataItem[] = JSON.parse(shiftData);
-    setShiftData(
-      parsedData.map((p): ShiftDataItem => ({
-        date: new Date(p.date),
-        time: {
-          start: new Date(p.time.start),
-          end: new Date(p.time.end),
-        },
-        tasks: p.tasks,
-      })),
-    );
-  }, []);
 
   const ShiftIcon = inShift ? Square : Play;
   const toggleShift = useCallback(() => {
@@ -100,7 +87,7 @@ function App() {
           start,
           end,
         },
-        tasks: "Add tasks here",
+        tasks: "",
       },
     ]);
     localStorage.removeItem("shift-start-time");
@@ -153,14 +140,15 @@ function App() {
       shiftData.forEach((shift, i) => {
         const row = worksheet.getRow(templateRowNumber + i);
 
-        row.getCell(2).value = shift.date;
-        row.getCell(3).value = shift.time.start;
-        row.getCell(4).value = shift.time.end;
+        row.getCell(2).value = new Date(toESTISO(shift.date));
+        row.getCell(3).value = new Date(toESTISO(shift.time.start));
+        row.getCell(4).value = new Date(toESTISO(shift.time.end));
+        row.getCell(8).value = shift.tasks
       });
 
       // Add the start and end dates
       worksheet.getCell("F4").value = shiftData[0].date;
-      worksheet.getCell("F5").value = new Date();
+      worksheet.getCell("F5").value = shiftData.at(-1)!.date;
 
       // Generate the modified XLSX
       const output = await workbook.xlsx.writeBuffer();
@@ -173,18 +161,15 @@ function App() {
 
       const link = document.createElement("a");
       link.href = url;
-      link.download = `WTN Timesheet (${shiftData[0].date.toLocaleDateString("en-US", { month: "short", day: "2-digit" })} - ${new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit" })})`;
+      link.download = `WTN Timesheet (${shiftData[0].date.toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "America/New_York" })} - ${shiftData.at(-1)!.date.toLocaleDateString("en-US", { month: "short", day: "2-digit", timeZone: "America/New_York" })})`;
       link.click();
 
       URL.revokeObjectURL(url);
 
-      // Clear data after download
-      setShiftData([]);
-
       function copyRow(sourceRow: ExcelJS.Row, targetRow: ExcelJS.Row) {
         targetRow.height = sourceRow.height;
 
-        for (let col = 1; col <= 7; col++) {
+        for (let col = 1; col <= 10; col++) {
           copyCell(sourceRow.getCell(col), targetRow.getCell(col));
         }
 
@@ -239,13 +224,19 @@ function App() {
               ? "Save billing phase as xlsx"
               : "Start new billing phase by clocking in/out"}
           </button>
+          <button
+            onClick={() => setShiftData([])}
+            disabled={shiftData.length === 0}
+          >
+            Clear Table
+          </button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto scrollbar-none">
         <h2 className="text-2xl font-semibold flex gap-4">
           Current Billing Phase
           <span className="text-gray-400">
-            (since {lastBillingPhase.toLocaleDateString()})
+            (since {toESTDate(lastBillingPhase)})
           </span>
         </h2>
         <table className="w-full mt-8 border-collapse">
@@ -264,14 +255,19 @@ function App() {
                 className="*:border *:border-gray-700 *:px-2 *:py-4 *:text-center"
                 key={`shift-item-${i}`}
               >
-                <td>{s.date.toLocaleDateString()}</td>
-                <td>{s.time.start.toLocaleTimeString()}</td>
-                <td>{s.time.end.toLocaleTimeString()}</td>
+                <td>{toESTDate(s.date)}</td>
+                <td>
+                  {toESTDate(s.time.start, { timeOnly: true })}
+                </td>
+                <td>
+                  {toESTDate(s.time.end, { timeOnly: true })}
+                </td>
                 <td>{calculateTimeElapsed(s.time.start, s.time.end)}</td>
                 <td>
                   <textarea
                     className="min-w-0 outline-none"
                     defaultValue={s.tasks}
+                    placeholder="Add task details here"
                     onChange={(e) => {
                       setShiftData((prev) => {
                         prev[i].tasks = e.target.value ?? s.tasks;
@@ -289,4 +285,31 @@ function App() {
   );
 }
 
-export default App;
+function toESTDate(
+  date: Date,
+  { timeOnly = false } = {},
+): string {
+  if (timeOnly)
+    return date.toLocaleTimeString("en-US", {
+      timeZone: "America/New_York",
+      timeStyle: 'short',
+    });
+
+  return date.toLocaleDateString("en-US", {
+    timeZone: "America/New_York",
+    dateStyle: "medium",
+  });
+}
+
+function toESTISO(date: Date) {
+  return new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+}
+
+function calculateTimeElapsed(date1: Date, date2: Date): string {
+  const ms = Math.abs(date2.getTime() - date1.getTime());
+  const s = ms / 1000;
+  const m = s / 60;
+  const h = m / 60;
+
+  return `${Math.floor(h) % 60}:${(Math.floor(m) % 60).toString().padStart(2, "0")}:${(Math.floor(s) % 60).toString().padStart(2, "0")}`;
+}
