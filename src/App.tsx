@@ -140,10 +140,10 @@ export default function App() {
       shiftData.forEach((shift, i) => {
         const row = worksheet.getRow(templateRowNumber + i);
 
-        row.getCell(2).value = new Date(toESTISO(shift.date));
-        row.getCell(3).value = new Date(toESTISO(shift.time.start));
-        row.getCell(4).value = new Date(toESTISO(shift.time.end));
-        row.getCell(8).value = shift.tasks
+        row.getCell(2).value = toESTISO(shift.date);
+        row.getCell(3).value = toESTISO(shift.time.start);
+        row.getCell(4).value = toESTISO(shift.time.end);
+        row.getCell(8).value = shift.tasks;
       });
 
       // Add the start and end dates
@@ -256,12 +256,8 @@ export default function App() {
                 key={`shift-item-${i}`}
               >
                 <td>{toESTDate(s.date)}</td>
-                <td>
-                  {toESTDate(s.time.start, { timeOnly: true })}
-                </td>
-                <td>
-                  {toESTDate(s.time.end, { timeOnly: true })}
-                </td>
+                <td>{toESTDate(s.time.start, { timeOnly: true })}</td>
+                <td>{toESTDate(s.time.end, { timeOnly: true })}</td>
                 <td>{calculateTimeElapsed(s.time.start, s.time.end)}</td>
                 <td>
                   <textarea
@@ -285,14 +281,11 @@ export default function App() {
   );
 }
 
-function toESTDate(
-  date: Date,
-  { timeOnly = false } = {},
-): string {
+function toESTDate(date: Date, { timeOnly = false } = {}): string {
   if (timeOnly)
     return date.toLocaleTimeString("en-US", {
       timeZone: "America/New_York",
-      timeStyle: 'short',
+      timeStyle: "short",
     });
 
   return date.toLocaleDateString("en-US", {
@@ -301,8 +294,27 @@ function toESTDate(
   });
 }
 
+const estFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit'
+});
+
 function toESTISO(date: Date) {
-  return new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const parts = estFormatter.formatToParts(date);
+  const year = parseInt(parts.find(p => p.type === 'year')?.value ?? '0');
+  const month = parseInt(parts.find(p => p.type === 'month')?.value ?? '0') - 1;
+  const day = parseInt(parts.find(p => p.type === 'day')?.value ?? '0');
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0');
+  const minute = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0');
+  const second = parseInt(parts.find(p => p.type === 'second')?.value ?? '0');
+
+  // Create a UTC date from the EST components
+  return new Date(Date.UTC(year, month, day, hour, minute, second));
 }
 
 function calculateTimeElapsed(date1: Date, date2: Date): string {
