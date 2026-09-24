@@ -241,7 +241,7 @@ function App() {
           </button>
         </div>
       </aside>
-      <main className="flex-1">
+      <main className="flex-1 overflow-auto scrollbar-none">
         <h2 className="text-2xl font-semibold flex gap-4">
           Current Billing Phase
           <span className="text-gray-400">
